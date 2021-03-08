@@ -720,39 +720,41 @@ class FlutterPlugin implements Plugin<Project> {
                 processResources.dependsOn(copyFlutterAssetsTask)
                 return
             }
+            //https://github.com/flutter/flutter/issues/42214
+            
             // Flutter module included as a subproject in add to app.
-            Project appProject = project.rootProject.findProject(':app')
+            def appModuleName=":app"
+            Project appProject = project.rootProject.findProject(appModuleName)
             assert appProject != null
             appProject.afterEvaluate {
                 assert appProject.android != null
-                appProject.android.applicationVariants.all { appProjectVariant ->
-                    // Find a compatible application variant in the host app.
-                    //
-                    // For example, consider a host app that defines the following variants:
-                    // | ----------------- | ----------------------------- |
-                    // |   Build Variant   |   Flutter Equivalent Variant  |
-                    // | ----------------- | ----------------------------- |
-                    // |   freeRelease     |   relese                      |
-                    // |   freeDebug       |   debug                       |
-                    // |   freeDevelop     |   debug                       |
-                    // |   profile         |   profile                     |
-                    // | ----------------- | ----------------------------- |
-                    //
-                    // This mapping is based on the following rules:
-                    // 1. If the host app build variant name is `profile` then the equivalent
-                    //    Flutter variant is `profile`.
-                    // 2. If the host app build variant is debuggable
-                    //    (e.g. `buildType.debuggable = true`), then the equivalent Flutter
-                    //    variant is `debug`.
-                    // 3. Otherwise, the equivalent Flutter variant is `release`.
+                appProject.android.applicationVariants.all { appProjectVariant ->   
                     if (buildModeFor(appProjectVariant.buildType) != variantBuildMode) {
                         return
                     }
                     Task mergeAssets = project
                         .tasks
-                        .findByPath(":app:merge${appProjectVariant.name.capitalize()}Assets")
+                        .findByPath("${appModuleName}:merge${appProjectVariant.name.capitalize()}Assets")
                     assert mergeAssets
                     mergeAssets.dependsOn(copyFlutterAssetsTask)
+                }
+            }
+
+            def fAppModuleName=":flutterShellapp"
+            Project fAppProject = project.rootProject.findProject(fAppModuleName)
+            if(fAppProject!=null){
+                fAppProject.afterEvaluate {
+                    assert fAppProject.android != null
+                    fAppProject.android.applicationVariants.all { fAppProjectVariant ->   
+                        if (buildModeFor(fAppProjectVariant.buildType) != variantBuildMode) {
+                            return
+                         }
+                        Task mergeAssets = project
+                            .tasks
+                            .findByPath("${fAppModuleName}:merge${fAppProjectVariant.name.capitalize()}Assets")
+                        assert mergeAssets
+                        mergeAssets.dependsOn(copyFlutterAssetsTask)
+                    }
                 }
             }
         }
